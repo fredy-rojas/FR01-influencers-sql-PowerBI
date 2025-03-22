@@ -121,7 +121,7 @@ SELECT
 FROM top_uk_youtubers_2024;
 
 GO  -- separates this from any earlier code
-ALTER VIEW view_slctd_cols AS 
+ALTER VIEW view_slctd_cols AS
 SELECT
     CAST(TRIM(SUBSTRING(NOMBRE, 1, CHARINDEX('@', NOMBRE) - 1)) AS VARCHAR(100)) AS channel_name,
     CAST(TRIM(SUBSTRING(NOMBRE, CHARINDEX('@', NOMBRE) + 1, LEN(NOMBRE))) AS VARCHAR(100)) AS channel_id,
@@ -129,8 +129,84 @@ SELECT
     total_views,
     total_videos
 FROM top_uk_youtubers_2024;
-
+GO 
 
 
 /*===============================================================*/
 /* ----- DATA QUALITY HEALTHY CHECKS ----- */
+
+/*
+-- What we expect from this data | aspects to explore
+1. Top 100 youtubers - row counts
+2. Columns formats
+3. Nulls 
+4. Duplicates
+
+-- EXPECTED DATA TYPE PER COLUMN:
+channel_name: VARCHAR(100),
+channel_id: VARCHAR(100),
+total_subscribers: INT,
+total_views: INT,
+total_videos: INT
+
+*/
+-- -------------------------------------------------------------
+-- Row Counts
+SELECT COUNT(*) AS no_of_rows
+FROM view_slctd_cols;
+
+-- -------------------------------------------------------------
+-- EXPLORING METADATA OF SELECTED COLUMNS VIEW
+SELECT 
+    TABLE_NAME,
+    COLUMN_NAME,
+    DATA_TYPE,
+    IS_NULLABLE,
+    CHARACTER_MAXIMUM_LENGTH
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'view_slctd_cols';
+-- col: 'total_views' is float
+
+-- -------------------------------------------------------------
+-- Before changing data type, check which instances (rows) has decimals 
+-- Check if there are any decimal values in total_views
+IF NOT EXISTS (
+    SELECT 1
+    FROM top_uk_youtubers_2024
+    WHERE total_views - FLOOR(total_views) <> 0
+)
+BEGIN
+    PRINT 'No decimals found. Updating the view...';
+
+	EXEC('
+    ALTER VIEW view_slctd_cols AS
+    SELECT
+        CAST(TRIM(SUBSTRING(NOMBRE, 1, CHARINDEX(''@'', NOMBRE) - 1)) AS VARCHAR(100)) AS channel_name,
+        CAST(TRIM(SUBSTRING(NOMBRE, CHARINDEX(''@'', NOMBRE) + 1, LEN(NOMBRE))) AS VARCHAR(100)) AS channel_id,
+        total_subscribers,
+        CAST(total_views AS INT) AS total_views,
+        total_videos
+    FROM top_uk_youtubers_2024;
+	');
+END
+ELSE
+BEGIN
+    PRINT 'Warning: Some rows contain decimal values in total_views. View not updated.';
+END
+
+
+-- -------------------------------------------------------------
+-- CHECKING DUPLICATES
+SELECT
+	channel_name,
+	COUNT(*) AS duplicate_count
+FROM view_slctd_cols
+GROUP BY channel_name
+HAVING COUNT(*) > 1;
+
+SELECT
+	channel_id,
+	COUNT(*) AS duplicate_count
+FROM view_slctd_cols
+GROUP BY channel_id
+HAVING COUNT(*) > 1;
