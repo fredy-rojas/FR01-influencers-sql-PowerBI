@@ -184,7 +184,7 @@ BEGIN
         CAST(TRIM(SUBSTRING(NOMBRE, 1, CHARINDEX(''@'', NOMBRE) - 1)) AS VARCHAR(100)) AS channel_name,
         CAST(TRIM(SUBSTRING(NOMBRE, CHARINDEX(''@'', NOMBRE) + 1, LEN(NOMBRE))) AS VARCHAR(100)) AS channel_id,
         total_subscribers,
-        CAST(total_views AS INT) AS total_views,
+        CAST(total_views AS BIGINT) AS total_views,
         total_videos
     FROM top_uk_youtubers_2024;
 	');
@@ -210,3 +210,21 @@ SELECT
 FROM view_slctd_cols
 GROUP BY channel_id
 HAVING COUNT(*) > 1;
+
+SELECT
+	channel_id,
+	COUNT(*) AS duplicate_count
+FROM view_slctd_cols
+GROUP BY channel_id
+HAVING COUNT(*) > 1;
+
+/*======================================*/
+-- Switch context to the DB
+USE youtube_db;
+
+-- Select final view table to export
+SELECT *
+FROM view_slctd_cols;
+
+
+SELECT @@SERVERNAME;
